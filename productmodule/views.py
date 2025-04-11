@@ -7,73 +7,144 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
-from .models import Product
+from .models import Product, ProductImage
 from .serializers import ProductSerializer
 
 # Handle uploaded image and return path
+# def handle_uploaded_file(file):
+#     upload_base = settings.STATIC_ROOT or settings.STATICFILES_DIRS[0]
+#     upload_dir = os.path.join(upload_base, 'product_images')
+#     os.makedirs(upload_dir, exist_ok=True)
+#     file_path = os.path.join(upload_dir, file.name)
+#     with open(file_path, 'wb+') as destination:
+#         for chunk in file.chunks():
+#             destination.write(chunk)
+#     return f"/static/product_images/{file.name}"
+
+import os
+from django.conf import settings
+
 def handle_uploaded_file(file):
     upload_base = settings.STATIC_ROOT or settings.STATICFILES_DIRS[0]
     upload_dir = os.path.join(upload_base, 'product_images')
     os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, file.name)
+
+    # Generate a unique filename to avoid conflicts
+    from uuid import uuid4
+    filename = f"{uuid4().hex}_{file.name}"
+    file_path = os.path.join(upload_dir, filename)
+
     with open(file_path, 'wb+') as destination:
         for chunk in file.chunks():
             destination.write(chunk)
-    return f"/static/product_images/{file.name}"
 
+    # Construct a URL path (e.g., /static/product_images/filename.jpg)
+    return f"/static/product_images/{filename}"
 
+# views.py
 @api_view(['POST'])
-@permission_classes([AllowAny])  # Allow any since we're not authenticating here
+@permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser])
 def add_product(request):
-    image_paths = []
-    for file_key in request.FILES:
-        file = request.FILES[file_key]
-        image_path = handle_uploaded_file(file)
-        image_paths.append(image_path)
-
-    data = request.data.copy()
-    data['image_paths'] = ",".join(image_paths)
-
-    # Now pass the seller from request.data directly
-    serializer = ProductSerializer(data=data)
+    serializer = ProductSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        serializer.save()
+        product = serializer.save()
         return Response({
             "message": "Product added successfully",
-            "product": serializer.data
+            "product": ProductSerializer(product).data
         }, status=status.HTTP_201_CREATED)
-
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def list_products(request):
-    products = Product.objects.all()
-    serializer = ProductSerializer(products, many=True)
-    return Response(serializer.data)
+
+
+# @api_view(['POST'])
+# @permission_classes([AllowAny])  # Allow any since we're not authenticating here
+# @parser_classes([MultiPartParser, FormParser])
+# def add_product(request):
+#     image_paths = []
+#     for file_key in request.FILES:
+#         file = request.FILES[file_key]
+#         image_path = handle_uploaded_file(file)
+#         image_paths.append(image_path)
+
+#     data = request.data.copy()
+#     data['image_paths'] = ",".join(image_paths)
+
+#     # Now pass the seller from request.data directly
+#     serializer = ProductSerializer(data=data)
+#     if serializer.is_valid():
+#         serializer.save()
+#         return Response({
+#             "message": "Product added successfully",
+#             "product": serializer.data
+#         }, status=status.HTTP_201_CREATED)
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# @api_view(['GET'])
+# @permission_classes([AllowAny])
+# def list_products(request):
+#     products = Product.objects.all()
+#     serializer = ProductSerializer(products, many=True)
+#     return Response(serializer.data)
+
 
 
 @api_view(['PUT'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser])
 def update_product(request, pk):
     product = get_object_or_404(Product, pk=pk)
-    image_paths = []
-    if request.FILES:
-        for file_key in request.FILES:
-            file = request.FILES[file_key]
-            image_path = handle_uploaded_file(file)
-            image_paths.append(image_path)
-        request.data._mutable = True
-        request.data['image_paths'] = ",".join(image_paths)
+    
+    # Save uploaded images (if any)
+    uploaded_images = request.FILES.getlist('uploaded_images')
+    if uploaded_images:
+        for image in uploaded_images:
+            filename = f"{uuid.uuid4()}_{image.name}"
+            save_path = os.path.join(settings.BASE_DIR, 'static', 'product_images', filename)
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+            with open(save_path, 'wb+') as destination:
+                for chunk in image.chunks():
+                    destination.write(chunk)
+
+            # Save to ProductImage model
+            ProductImage.objects.create(
+                id=uuid.uuid4(),
+                product=product,
+                image=f"/static/product_images/{filename}"
+            )
 
     serializer = ProductSerializer(product, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# @api_view(['GET'])
+# @permission_classes([AllowAny])
+# def get_product_by_id(request, pk):
+#     product = get_object_or_404(Product, pk=pk)
+#     serializer = ProductSerializer(product)
+#     return Response(serializer.data)
+
+
+# @api_view(['GET'])
+# @permission_classes([AllowAny])
+# def get_products_by_category(request, category):
+#     products = Product.objects.filter(category__iexact=category)
+#     if not products.exists():
+#         return Response({"error": f"No products found in category: {category}"}, status=status.HTTP_404_NOT_FOUND)
+#     serializer = ProductSerializer(products, many=True)
+#     return Response(serializer.data)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_products(request):
+    products = Product.objects.all()
+    serializer = ProductSerializer(products, many=True, context={'request': request})
+    return Response(serializer.data)
 
 
 @api_view(['GET'])
@@ -82,7 +153,6 @@ def get_product_by_id(request, pk):
     product = get_object_or_404(Product, pk=pk)
     serializer = ProductSerializer(product)
     return Response(serializer.data)
-
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

@@ -47,9 +47,12 @@ INSTALLED_APPS = [
     'Consultant',
     'Appointments',
     'Checkout',
-    'SearchHistory'
+    'SearchHistory',
+    'PredectModel'
     
 ]
+RAZORPAY_KEY_ID = 'rzp_test_j0yXUOnPFk8mco'
+RAZORPAY_KEY_SECRET = '7K9PaAZnl0SbVEu4ND6EGBAa'
 
 AUTH_USER_MODEL = 'user.User'
 

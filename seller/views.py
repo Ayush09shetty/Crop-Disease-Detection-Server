@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from .models import Seller
+from django.shortcuts import get_object_or_404
 from .serializers import SellerSignupSerializer, SellerLoginSerializer
 
 # Generate JWT tokens
@@ -49,18 +50,18 @@ def seller_login(request):
     return Response({"message": "Login successful", "tokens": tokens}, status=status.HTTP_200_OK)
 
 # Get Seller Profile (Protected)
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])  
-def seller_profile(request):
-    seller = request.user
-    return Response(
-        {
-            "firstName": seller.firstName,
-            "lastName": seller.lastName,
-            "businessName": seller.businessName,
-            "phone": seller.phone,
-            "email": seller.email,
-            "gst": seller.gst,
-        },
-        status=status.HTTP_200_OK,
-    )
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def seller_profile(request, seller_id):
+    seller = get_object_or_404(Seller, id=seller_id)
+
+    data = {
+        "id": str(seller.id),
+        "firstName": seller.firstName,
+        "lastName": seller.lastName,
+        "businessName": seller.businessName,
+        "email": seller.email,
+        "phone": seller.phone,
+        "gst": seller.gst
+    }
+    return Response(data)

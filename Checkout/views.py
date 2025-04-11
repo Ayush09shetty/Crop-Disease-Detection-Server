@@ -7,6 +7,13 @@ from .models import Order, OrderHistory
 from .serializers import OrderHistorySerializer
 from productmodule.models import Product
 from Cart.models import Cart, CartItem
+import razorpay
+from django.conf import settings
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
+
 
 
 class PlaceOrderView(APIView):
@@ -98,3 +105,34 @@ class FetchOrderSummaryView(APIView):
         orders = OrderHistory.objects.filter(user=user).order_by('-order_date')
         serializer = OrderHistorySerializer(orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+# class FetchOrderSummaryView(APIView):
+#     permission_classes = [IsAuthenticated]  # Require JWT-authenticated user
+
+#     def get(self, request):
+#         user = request.user
+#         orders = OrderHistory.objects.filter(user=user).order_by('-order_date')
+#         serializer = OrderHistorySerializer(orders, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def razorpayorder(request):
+    try:
+        amount = int(request.data.get("amount", 0)) * 100  # Razorpay works in paise
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+        payment = client.order.create({
+            "amount": amount,
+            "currency": "INR",
+            "payment_capture": "1"
+        })
+
+        return Response({
+            "order_id": payment['id'],
+            "amount": payment['amount'],
+            "currency": payment['currency'],
+            "razorpay_key": settings.RAZORPAY_KEY_ID
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -16,4 +16,5 @@ urlpatterns = [
     path("appointment/", include('Appointments.urls')),
     path("checkout/", include('Checkout.urls')),
     path("search/", include('SearchHistory.urls')),
+    path("predict/", include('PredectModel.urls')),
 ]

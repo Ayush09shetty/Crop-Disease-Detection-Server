@@ -126,7 +126,7 @@ class UserAppointmentsView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ConsultantAppointmentsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request, consultant_id):
         consultant = get_object_or_404(ConsultantUser, id=consultant_id)

@@ -69,7 +69,8 @@ class ViewCartView(APIView):
         user = request.user
         cart = get_object_or_404(Cart, user=user)
         cart_items = cart.items.all()
-        serializer = CartItemSerializer(cart_items, many=True)
+        # serializer = CartItemSerializer(cart_items, many=True)
+        serializer = CartItemSerializer(cart_items, many=True, context={'request': request})
         return Response(serializer.data)
 
 

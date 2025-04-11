@@ -17,7 +17,7 @@ def get_tokens_for_user(user):
 
 # Signup API
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])  #  No authentication required
+@permission_classes([AllowAny])  #  No authentication required
 def signup(request):
     serializer = UserSignupSerializer(data=request.data)
     if serializer.is_valid():
