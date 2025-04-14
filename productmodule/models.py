@@ -35,6 +35,7 @@
 #         return self.name
 import uuid
 from django.db import models
+ 
 
 def product_image_upload_path(instance, filename):
     return f"static/product_images/{uuid.uuid4()}_{filename}"
@@ -78,3 +79,25 @@ class ProductImage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='static/product_images/')
+
+class OrderStatus(models.Model):
+    STATUS_CHOICES = [
+        ('confirmed', 'Confirmed'),
+        ('shipped', 'Shipped'),
+        ('delivered', 'Delivered'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.OneToOneField("Checkout.OrderHistory", on_delete=models.CASCADE, related_name='status')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='confirmed')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.order.id} - {self.status}"
+class Inventory(models.Model):
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="inventory")
+    inventory = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.product.title} - {self.quantity} in stock"

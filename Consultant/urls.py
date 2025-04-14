@@ -6,7 +6,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path("signup/", ConsultantRegisterView.as_view(), name="consultant_register"),
     path("login/", ConsultantLoginView.as_view(), name="consultant_login"),
-    path("profile/", ConsultantProfileView.as_view(), name="consultant_profile"),
+    path("profile/<slug:consultant_id>", ConsultantProfileView.as_view(), name="consultant_profile"),
 ]
 
 if settings.DEBUG:

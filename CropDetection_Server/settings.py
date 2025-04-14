@@ -29,6 +29,7 @@ ALLOWED_HOSTS = ["*"]  # Change in production
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+    'corsheaders',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -55,11 +56,13 @@ RAZORPAY_KEY_ID = 'rzp_test_j0yXUOnPFk8mco'
 RAZORPAY_KEY_SECRET = '7K9PaAZnl0SbVEu4ND6EGBAa'
 
 AUTH_USER_MODEL = 'user.User'
+CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:8000"]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

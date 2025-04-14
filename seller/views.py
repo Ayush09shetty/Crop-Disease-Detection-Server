@@ -1,6 +1,6 @@
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes,authentication_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from .models import Seller
@@ -65,3 +65,31 @@ def seller_profile(request, seller_id):
         "gst": seller.gst
     }
     return Response(data)
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@authentication_classes([])  # Important to prevent default JWT auth from interfering
+def get_seller_id_from_token(request):
+    token = request.data.get("token")
+
+    if not token:
+        return Response({"error": "Access token not provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Decode the token using SimpleJWT's AccessToken class
+        access_token = AccessToken(token)
+        user_id = access_token.get('user_id')
+
+        if not user_id:
+            return Response({"error": "Invalid token, user_id not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        seller = Seller.objects.get(id=user_id)
+
+        return Response({"seller_id": str(seller.id)}, status=status.HTTP_200_OK)
+
+    except Seller.DoesNotExist:
+        return Response({"error": "Seller not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

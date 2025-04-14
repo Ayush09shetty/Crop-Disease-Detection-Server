@@ -1,5 +1,4 @@
-from rest_framework import serializers
-from .models import Product
+
 
 # class ProductSerializer(serializers.ModelSerializer):
 #     images = serializers.ListField(
@@ -74,7 +73,7 @@ from .models import Product
 #         fields = '__all__'
 #         extra_kwargs = {'seller': {'required': False}}
 from rest_framework import serializers
-from .models import Product, ProductImage
+from .models import Product, ProductImage, OrderStatus
 
 class ProductImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
@@ -110,3 +109,18 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return product
 
+class OrderStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderStatus
+        fields = ['id', 'order', 'status', 'updated_at']
+
+
+from .models import Inventory
+
+class InventorySerializer(serializers.ModelSerializer):
+    product_id = serializers.UUIDField(source='product.id', read_only=True)
+    product_title = serializers.CharField(source='product.title', read_only=True)
+
+    class Meta:
+        model = Inventory
+        fields = ['product_id', 'product_title', 'inventory', 'updated_at']

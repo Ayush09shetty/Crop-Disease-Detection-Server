@@ -9,6 +9,11 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Product, ProductImage
 from .serializers import ProductSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import OrderStatus
+from .serializers import OrderStatusSerializer
 
 # Handle uploaded image and return path
 # def handle_uploaded_file(file):
@@ -162,3 +167,113 @@ def get_products_by_category(request, category):
         return Response({"error": f"No products found in category: {category}"}, status=status.HTTP_404_NOT_FOUND)
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
+from Checkout.models import OrderHistory
+class UpdateOrderStatusView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, order_id):
+        try:
+            order = OrderHistory.objects.get(id=order_id)
+        except OrderHistory.DoesNotExist:
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            order_status = OrderStatus.objects.get(order=order)
+        except OrderStatus.DoesNotExist:
+            return Response({"error": "Status not found for this order."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = OrderStatusSerializer(order_status)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, order_id):
+        try:
+            order = OrderHistory.objects.get(id=order_id)
+        except OrderHistory.DoesNotExist:
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        if new_status not in ['confirmed', 'shipped', 'delivered']:
+            return Response({"error": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST)
+
+        order_status, created = OrderStatus.objects.get_or_create(order=order)
+        order_status.status = new_status
+        order_status.save()
+
+        serializer = OrderStatusSerializer(order_status)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+from rest_framework.views import APIView
+from .models import Inventory
+from productmodule.models import Product
+from .serializers import InventorySerializer
+
+class UpdateInventoryView(APIView):
+    permission_classes = [AllowAny]
+
+    def put(self, request, product_id):
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get or create inventory record for the product
+        inventory, created = Inventory.objects.get_or_create(product=product)
+
+        new_inventory = request.data.get("inventory")
+        if new_inventory is None:
+            return Response({"error": "Inventory value is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            inventory.inventory = int(new_inventory)  # Update the 'inventory' field
+            inventory.save()
+        except ValueError:
+            return Response({"error": "Invalid inventory value."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = InventorySerializer(inventory)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class AllOrderStatusView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        all_orders = OrderHistory.objects.all()
+
+        # Ensure each order has a corresponding OrderStatus
+        for order in all_orders:
+            OrderStatus.objects.get_or_create(order=order, defaults={"status": "confirmed"})
+
+        # Fetch all order statuses
+        order_statuses = OrderStatus.objects.select_related('order').all()
+
+        # Count totals
+        delivered_count = order_statuses.filter(status="delivered").count()
+        shipped_count = order_statuses.filter(status="shipped").count()
+        confirmed_count = order_statuses.filter(status="confirmed").count()
+        pending_count = shipped_count + confirmed_count
+
+        serializer = OrderStatusSerializer(order_statuses, many=True)
+
+        return Response({
+            "order_statuses": serializer.data,
+            "counts": {
+                "delivered": delivered_count,
+                "shipped": shipped_count,
+                "pending": pending_count
+            }
+        }, status=status.HTTP_200_OK)
+    
+
+class GetAllInventoryView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        # Ensure every product has an inventory record
+        all_products = Product.objects.all()
+
+        for product in all_products:
+            Inventory.objects.get_or_create(product=product, defaults={"quantity": 0})
+
+        # Fetch all inventories (now guaranteed to include every product)
+        inventories = Inventory.objects.select_related('product').all()
+        serializer = InventorySerializer(inventories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

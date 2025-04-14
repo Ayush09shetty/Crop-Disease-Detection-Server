@@ -11,11 +11,19 @@ class ProductBriefSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     product = ProductBriefSerializer(read_only=True)
+    seller_id = serializers.UUIDField(source='product.seller', read_only=True)
+    cost_price = serializers.DecimalField(source='product.cost_price', max_digits=10, decimal_places=2, read_only=True)
+    total_cost = serializers.SerializerMethodField()
+
 
     class Meta:
         model = Order
-        fields = ['id', 'product', 'quantity', 'rate', 'total_price']
-
+        fields = ['id', 'product', 'quantity', 'rate', 'total_price','seller_id','cost_price','total_cost']
+    def get_total_cost(self, obj):
+        try:
+            return float(obj.product.cost_price) * obj.quantity
+        except:
+            return None
 
 class OrderHistorySerializer(serializers.ModelSerializer):
     orders = OrderSerializer(many=True, read_only=True)

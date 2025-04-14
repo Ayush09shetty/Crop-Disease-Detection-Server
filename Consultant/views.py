@@ -57,9 +57,12 @@ class ConsultantLoginView(APIView):
 # Consultant Profile
 
 class ConsultantProfileView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
-    def get(self, request):
-        user = request.user
-        serializer = ConsultantUserSerializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get(self, request, consultant_id):
+        try:
+            consultant = ConsultantUser.objects.get(id=consultant_id)
+            serializer = ConsultantUserSerializer(consultant)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except ConsultantUser.DoesNotExist:
+            return Response({"error": "Consultant not found"}, status=status.HTTP_404_NOT_FOUND)
