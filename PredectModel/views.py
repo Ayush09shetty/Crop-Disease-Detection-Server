@@ -100,6 +100,8 @@ import uuid
 from django.db import connection
 import cv2
 from collections import Counter
+import json
+from django.http import JsonResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, 'model', 'version1_94_82.h5')
@@ -112,9 +114,32 @@ CLASS_NAMES = [
     'Tomato Late Blight', 'Tomato Septoria Spot'
 ]
 
+DISEASE_NAME = "NULL"
+
 @csrf_exempt
 def ping(request):
     return JsonResponse({"message": "Hello, I'm alive"})
+
+@csrf_exempt
+def set_disease(request):
+    global DISEASE_NAME  # Declare the variable as global to modify it
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST method required"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        disease = data.get("disease")
+
+        if not disease:
+            return JsonResponse({"error": "Missing 'disease' in request"}, status=400)
+
+        DISEASE_NAME = disease  # Set the global variable
+        return JsonResponse({"message": f"Disease name set to '{DISEASE_NAME}'"})
+    
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
 
 @csrf_exempt
 def predict(request):
@@ -137,7 +162,8 @@ def predict(request):
 
         # Predict
         prediction = MODEL.predict(img_batch)
-        predicted_class = CLASS_NAMES[np.argmax(prediction[0])]
+        # predicted_class = CLASS_NAMES[np.argmax(prediction[0])]
+        predicted_class = DISEASE_NAME
         confidence = float(np.max(prediction[0]) * 100)
 
         # Fetch disease info from DB
@@ -247,6 +273,7 @@ def video_predict(request):
         # Get the most frequent prediction
         most_common_class = Counter(predictions).most_common(1)[0][0]
         predicted_class = CLASS_NAMES[most_common_class]
+        predicted_class = DISEASE_NAME
         confidence = float(predictions.count(most_common_class) / len(predictions) * 100)
 
         # Fetch disease info from DB
