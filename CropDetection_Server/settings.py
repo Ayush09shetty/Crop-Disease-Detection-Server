@@ -97,7 +97,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',  # MySQL database engine
         'NAME': 'CROPDETECTION',  # Replace with your database name
         'USER': 'root',  # Replace with your MySQL username
-        'PASSWORD': 'root',  # Replace with your MySQL password
+        'PASSWORD': 'root@123',  # Replace with your MySQL password
         'HOST': 'localhost',  # Change if your DB is hosted remotely
         'PORT': '3306',  # Default MySQL port
     }
