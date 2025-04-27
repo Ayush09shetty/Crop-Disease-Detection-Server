@@ -1,3 +1,4 @@
+#This file contains the views for seller authentication token, login, profile details and signup functions
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes,authentication_classes
@@ -16,6 +17,8 @@ def get_tokens_for_seller(seller):
     }
 
 # Seller Signup API
+# This function is used for seller signup page
+# This take feilds like seller details, gst number, phone number,email and genrate a jwt token for the seller
 @api_view(["POST"])
 @permission_classes([AllowAny])  
 def seller_signup(request):
@@ -31,6 +34,7 @@ def seller_signup(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Seller Login API
+# This is a login functionality of the seller
 @api_view(["POST"])
 @permission_classes([AllowAny]) 
 def seller_login(request):
@@ -50,6 +54,7 @@ def seller_login(request):
     return Response({"message": "Login successful", "tokens": tokens}, status=status.HTTP_200_OK)
 
 # Get Seller Profile (Protected)
+# This function is used to fetch the seller details
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def seller_profile(request, seller_id):
@@ -67,7 +72,7 @@ def seller_profile(request, seller_id):
     return Response(data)
 
 
-
+# This function is used to fetch the seller id with the given seller token as the input
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @authentication_classes([])  # Important to prevent default JWT auth from interfering

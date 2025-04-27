@@ -1,3 +1,4 @@
+# Thuis file contains the views for handling appointment-related requests.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -6,8 +7,11 @@ from django.shortcuts import get_object_or_404
 from .models import Appointment
 from .serializers import AppointmentSerializer
 from Consultant.models import ConsultantUser
-from Consultant.serializers import ConsultantUserSerializer  # Ensure you have this serializer
+from Consultant.serializers import ConsultantUserSerializer 
+from django.core.cache import cache
 
+
+# This view is for booking an appointment
 class BookAppointmentView(APIView):
     permission_classes = [IsAuthenticated]  
 
@@ -56,6 +60,8 @@ class BookAppointmentView(APIView):
         return Response({"message": "Appointment booked successfully!", "appointment": serializer.data}, status=status.HTTP_201_CREATED)
 
 
+# This view is for updating the status of an appointment
+# It accepts an appointment ID and the new status in the request body.
 class UpdateAppointmentStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -81,6 +87,7 @@ class UpdateAppointmentStatusView(APIView):
         return Response({"message": "Appointment status updated successfully!", "new_status": new_status}, status=status.HTTP_200_OK)
 
 
+# This view is for users to get the booked slots for a specific consultant on a specific date
 class GetBookedSlotsView(APIView):
     permission_classes = [AllowAny]  
 
@@ -99,15 +106,24 @@ class GetBookedSlotsView(APIView):
         return Response({"consultantId": consultant_id, "date": date, "booked_slots": list(booked_slots)}, status=status.HTTP_200_OK)
 
 
+# This view is for users to view the list of consultants
 class GetConsultantListView(APIView):
-    permission_classes = [AllowAny]  
+    permission_classes = [AllowAny]
 
     def get(self, request):
+        # Try to get consultants from cache
+        cached_consultants = cache.get('consultant_list')
+        if cached_consultants:
+            return Response(cached_consultants, status=status.HTTP_200_OK)
+        # If not cached, query DB
         consultants = ConsultantUser.objects.all()
         serializer = ConsultantUserSerializer(consultants, many=True)
+        # Save into cache for 5 minutes
+        cache.set('consultant_list', serializer.data, timeout=300)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+# This view is for users to view a specific consultant's profile
 class GetConsultantByIdView(APIView):
     permission_classes = [AllowAny]  
 
@@ -116,6 +132,8 @@ class GetConsultantByIdView(APIView):
         serializer = ConsultantUserSerializer(consultant)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+# This view is for users to view their own appointments
 class UserAppointmentsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -125,6 +143,8 @@ class UserAppointmentsView(APIView):
         serializer = AppointmentSerializer(appointments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+# This view is for consultants to view their own appointments
 class ConsultantAppointmentsView(APIView):
     permission_classes = [AllowAny]
 

@@ -1,3 +1,4 @@
+# This view is used to show the promotion images and to add the promotion images by the seller
 from django.conf import settings
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
@@ -8,6 +9,9 @@ import os
 import random
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import api_view, permission_classes
+
+
+# This function is used to upload the promotion image
 @api_view(['PUT'])
 @permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser]) 
@@ -20,6 +24,7 @@ def upload_promotion_image(request):
     return Response({"message": "Image uploaded successfully", "image_name": saved_image_name}, status=status.HTTP_200_OK)
 
 
+#This function is used to randomly get one promotion image
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_random_promotion_image_path(request):

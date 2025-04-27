@@ -1,3 +1,4 @@
+# This view is used to store the user details
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -6,6 +7,8 @@ from django.shortcuts import get_object_or_404
 from .models import UserAddress
 from .serializers import UserAddressSerializer
 
+
+#This function is used to add the users address details
 class AddAddressView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -28,6 +31,7 @@ class AddAddressView(APIView):
         return Response({"message": "Address added successfully!", "id": address.id}, status=status.HTTP_201_CREATED)
 
 
+#This function is used to fetch all the user address
 class FetchAllAddressesView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -38,6 +42,7 @@ class FetchAllAddressesView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+# This funtion is used to update the user address details
 class UpdateAddressView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -64,6 +69,8 @@ class UpdateAddressView(APIView):
 
         return Response({"message": "Address updated successfully!"}, status=status.HTTP_200_OK)
 
+
+#This function is used to delete the users address
 class DeleteAddressView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -80,6 +87,9 @@ class DeleteAddressView(APIView):
         address.delete()
 
         return Response({"message": "Address deleted successfully!"}, status=status.HTTP_200_OK)
+    
+
+# This function is used to update the User name
 class UpdateUserNameView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -99,6 +109,7 @@ class UpdateUserNameView(APIView):
         return Response({"message": "User name updated successfully!"}, status=status.HTTP_200_OK)
 
 
+# This function is used to update the user password
 class UpdateUserPasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -121,6 +132,7 @@ class UpdateUserPasswordView(APIView):
         return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
 
 
+# Thus is used to update the Phone Number
 class UpdateUserPhoneView(APIView):
     permission_classes = [IsAuthenticated]
 

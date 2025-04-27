@@ -1,5 +1,7 @@
+# This file contains all the product module function like add product, list product, update product and delete product
 import os
 import uuid
+from uuid import uuid4
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes, parser_classes
@@ -7,35 +9,21 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
-from .models import Product, ProductImage
-from .serializers import ProductSerializer
+from .models import Product, ProductImage, Inventory, OrderStatus
+from .serializers import ProductSerializer, OrderStatusSerializer, InventorySerializer
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .models import OrderStatus
-from .serializers import OrderStatusSerializer
+from Checkout.models import OrderHistory
+from django.core.cache import cache
 
-# Handle uploaded image and return path
-# def handle_uploaded_file(file):
-#     upload_base = settings.STATIC_ROOT or settings.STATICFILES_DIRS[0]
-#     upload_dir = os.path.join(upload_base, 'product_images')
-#     os.makedirs(upload_dir, exist_ok=True)
-#     file_path = os.path.join(upload_dir, file.name)
-#     with open(file_path, 'wb+') as destination:
-#         for chunk in file.chunks():
-#             destination.write(chunk)
-#     return f"/static/product_images/{file.name}"
 
-import os
-from django.conf import settings
-
+# This function is used to handle the uploaded file and save it to the server
+# It takes the file as input and saves it to the static directory with a unique name
 def handle_uploaded_file(file):
     upload_base = settings.STATIC_ROOT or settings.STATICFILES_DIRS[0]
     upload_dir = os.path.join(upload_base, 'product_images')
     os.makedirs(upload_dir, exist_ok=True)
-
     # Generate a unique filename to avoid conflicts
-    from uuid import uuid4
+
     filename = f"{uuid4().hex}_{file.name}"
     file_path = os.path.join(upload_dir, filename)
 
@@ -46,7 +34,9 @@ def handle_uploaded_file(file):
     # Construct a URL path (e.g., /static/product_images/filename.jpg)
     return f"/static/product_images/{filename}"
 
-# views.py
+
+# This function is used to add a new product to the database
+# It takes the product details from the request and saves it to the database
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser])
@@ -61,42 +51,8 @@ def add_product(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
-# @api_view(['POST'])
-# @permission_classes([AllowAny])  # Allow any since we're not authenticating here
-# @parser_classes([MultiPartParser, FormParser])
-# def add_product(request):
-#     image_paths = []
-#     for file_key in request.FILES:
-#         file = request.FILES[file_key]
-#         image_path = handle_uploaded_file(file)
-#         image_paths.append(image_path)
-
-#     data = request.data.copy()
-#     data['image_paths'] = ",".join(image_paths)
-
-#     # Now pass the seller from request.data directly
-#     serializer = ProductSerializer(data=data)
-#     if serializer.is_valid():
-#         serializer.save()
-#         return Response({
-#             "message": "Product added successfully",
-#             "product": serializer.data
-#         }, status=status.HTTP_201_CREATED)
-
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# @api_view(['GET'])
-# @permission_classes([AllowAny])
-# def list_products(request):
-#     products = Product.objects.all()
-#     serializer = ProductSerializer(products, many=True)
-#     return Response(serializer.data)
-
-
-
+# This function is used to update an existing product in the database
+# It takes the product ID and the new product details from the request
 @api_view(['PUT'])
 @permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser])
@@ -128,30 +84,24 @@ def update_product(request, pk):
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# @api_view(['GET'])
-# @permission_classes([AllowAny])
-# def get_product_by_id(request, pk):
-#     product = get_object_or_404(Product, pk=pk)
-#     serializer = ProductSerializer(product)
-#     return Response(serializer.data)
 
-
-# @api_view(['GET'])
-# @permission_classes([AllowAny])
-# def get_products_by_category(request, category):
-#     products = Product.objects.filter(category__iexact=category)
-#     if not products.exists():
-#         return Response({"error": f"No products found in category: {category}"}, status=status.HTTP_404_NOT_FOUND)
-#     serializer = ProductSerializer(products, many=True)
-#     return Response(serializer.data)
+# This function is used to delete a product from the database
+# It takes the product ID from the request and deletes it from the database
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def list_products(request):
-    products = Product.objects.all()
-    serializer = ProductSerializer(products, many=True, context={'request': request})
-    return Response(serializer.data)
+    cached_products = cache.get('products_list')
+
+    if not cached_products:
+        products = Product.objects.all()
+        serializer = ProductSerializer(products, many=True, context={'request': request})
+        cached_products = serializer.data
+        cache.set('products_list', cached_products, timeout=300)  # cache for 5 minutes (300 seconds)
+    return Response(cached_products)
 
 
+# This function is used to get the details of a specific product by its ID
+# It takes the product ID from the request and returns the product details
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_product_by_id(request, pk):
@@ -159,6 +109,9 @@ def get_product_by_id(request, pk):
     serializer = ProductSerializer(product)
     return Response(serializer.data)
 
+
+# This function is used to get all products in a specific category
+# It takes the category name from the request and returns all products in that category
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_products_by_category(request, category):
@@ -167,7 +120,10 @@ def get_products_by_category(request, category):
         return Response({"error": f"No products found in category: {category}"}, status=status.HTTP_404_NOT_FOUND)
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
-from Checkout.models import OrderHistory
+
+
+# This view is used to update the order status of a product. This is a seller funtionality
+# It takes the order ID and the new status from the request
 class UpdateOrderStatusView(APIView):
     permission_classes = [AllowAny]
 
@@ -202,11 +158,9 @@ class UpdateOrderStatusView(APIView):
         serializer = OrderStatusSerializer(order_status)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-from rest_framework.views import APIView
-from .models import Inventory
-from productmodule.models import Product
-from .serializers import InventorySerializer
 
+# This function is used to update the inventory of a product
+# It takes the product ID and the new inventory value from the request
 class UpdateInventoryView(APIView):
     permission_classes = [AllowAny]
 
@@ -232,6 +186,9 @@ class UpdateInventoryView(APIView):
         serializer = InventorySerializer(inventory)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+# This view is used to get all order status of the orders in the database
+# It returns the order status of all orders with their details
 class AllOrderStatusView(APIView):
     permission_classes = [AllowAny]
 
@@ -263,6 +220,7 @@ class AllOrderStatusView(APIView):
         }, status=status.HTTP_200_OK)
     
 
+# This view is used to get all inventories of products for the seller
 class GetAllInventoryView(APIView):
     permission_classes = [AllowAny]
 
@@ -277,3 +235,38 @@ class GetAllInventoryView(APIView):
         inventories = Inventory.objects.select_related('product').all()
         serializer = InventorySerializer(inventories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+# This funtion is used to get the recent products added to the database
+# It returns the latest 5 products with their details
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def recent_products(request):
+    # Try fetching cached data first
+    cached_recent_products = cache.get('recent_products_list')
+    if cached_recent_products:
+        return Response(cached_recent_products)
+
+    # If not cached, fetch from DB
+    products = Product.objects.order_by('-created_at')[:5]
+    data = []
+
+    for product in products:
+        first_image_obj = product.images.first()
+        first_image = first_image_obj.image.url if first_image_obj else ''
+
+        data.append({
+            'product_id': product.id,
+            'title': product.name,
+            'first_image': request.build_absolute_uri(first_image) if first_image else '',
+            'cost_price': float(product.cost_price),
+            'selling_price': float(product.selling_price),
+        })
+
+    # Store the data in cache for 5 minutes (300 seconds)
+    cache.set('recent_products_list', data, timeout=300)
+
+    return Response(data) 
+
+

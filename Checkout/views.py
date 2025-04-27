@@ -1,21 +1,24 @@
+# This file contains the views for handling checkout order related requests.
 import uuid
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Order, OrderHistory
 from .serializers import OrderHistorySerializer
 from productmodule.models import Product
 from Cart.models import Cart, CartItem
 import razorpay
+from django.db.models import Sum,F, ExpressionWrapper, DecimalField, DateField
 from django.conf import settings
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import AllowAny
+from django.db.models.functions import TruncDate
+from django.core.cache import cache
 
 
-
+# This view handles the placement of orders by users.
+# It checks the user's cart, validates the payment details, and creates an order history and individual orders.
 class PlaceOrderView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -97,6 +100,8 @@ class PlaceOrderView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# This view fetches the order summary for the authenticated user.
+# It retrieves the order history and serializes it for the response.
 class FetchOrderSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -106,15 +111,9 @@ class FetchOrderSummaryView(APIView):
         serializer = OrderHistorySerializer(orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-# class FetchOrderSummaryView(APIView):
-#     permission_classes = [IsAuthenticated]  # Require JWT-authenticated user
 
-#     def get(self, request):
-#         user = request.user
-#         orders = OrderHistory.objects.filter(user=user).order_by('-order_date')
-#         serializer = OrderHistorySerializer(orders, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+# This view creates a Razorpay order for the specified amount.
+# It uses the Razorpay API to create an order and returns the order ID and other details.
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def razorpayorder(request):
@@ -136,6 +135,10 @@ def razorpayorder(request):
         }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+# This view fetches all order histories from the database.
+# It retrieves the order histories and serializes them for the response.
 class FetchAllOrderHistoriesView(APIView):
     permission_classes = [AllowAny]
 
@@ -145,14 +148,8 @@ class FetchAllOrderHistoriesView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
-
-from django.db.models import F, Sum, ExpressionWrapper, DecimalField
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny
-from .models import Order
-
+# This view calculates the total sales and profit for a specific seller.
+# It filters the orders based on the seller ID and aggregates the total sales and profit.
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def total_sales_by_seller(request):
@@ -187,14 +184,9 @@ def total_sales_by_seller(request):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-from django.db.models import F, Sum, ExpressionWrapper, DecimalField, DateField
-from django.db.models.functions import TruncDate
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny
-from .models import Order
 
+# This view calculates the total sales and profit per day for a specific seller.
+# It filters the orders based on the seller ID and groups them by date to aggregate the total sales and profit.
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def total_sales_profit_per_day(request):
@@ -225,3 +217,56 @@ def total_sales_profit_per_day(request):
 
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# This view fetches the top 10 selling products based on total quantity sold.
+# It aggregates the total quantity sold for each product and returns the details of those products.
+class TopSellingProductsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        # Try to fetch from cache first
+        cached_top_selling = cache.get('top_selling_products')
+        if cached_top_selling:
+            return Response(cached_top_selling, status=status.HTTP_200_OK)
+
+        # Cache miss: Query from DB
+        top_products = (
+            Order.objects
+            .values('product')
+            .annotate(total_sold=Sum('quantity'))
+            .order_by('-total_sold')[:10]
+        )
+
+        result = []
+        for entry in top_products:
+            product_id = entry['product']
+            total_sold = entry['total_sold']
+
+            try:
+                product = Product.objects.get(id=product_id)
+                order = Order.objects.filter(product=product).first()
+
+                # Get first image (if exists)
+                first_image = None
+                if hasattr(product, 'images'):
+                    image_obj = product.images.first()
+                    if image_obj and hasattr(image_obj, 'image'):
+                        first_image = request.build_absolute_uri(image_obj.image.url)
+
+                result.append({
+                    'order_id': order.id if order else None,
+                    'product_id': product.id,
+                    'title': product.name,
+                    'first_image': first_image,
+                    'cost_price': float(product.cost_price),
+                    'selling_price': float(product.selling_price),
+                    'total_sold': total_sold
+                })
+
+            except Product.DoesNotExist:
+                continue
+
+        # Save the result into cache for 5 minutes
+        cache.set('top_selling_products', result, timeout=300)
+
+        return Response(result, status=status.HTTP_200_OK)

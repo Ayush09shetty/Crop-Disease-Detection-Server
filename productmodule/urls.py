@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from productmodule import views
-from .views import UpdateOrderStatusView,AllOrderStatusView,UpdateInventoryView,GetAllInventoryView
+from .views import UpdateOrderStatusView,AllOrderStatusView,UpdateInventoryView,GetAllInventoryView,recent_products
 
 urlpatterns = [
     path('addproducts/', views.add_product),
@@ -14,4 +14,5 @@ urlpatterns = [
     path('all-order-status/', AllOrderStatusView.as_view(), name='all_order_status'),
     path('update-inventory/<slug:product_id>/', UpdateInventoryView.as_view(), name='update_inventory'),
     path('GetAllInventoryView/', GetAllInventoryView.as_view(), name='get_all_inventory'),
+    path('recent_products/', recent_products, name='recent_products'),
 ]

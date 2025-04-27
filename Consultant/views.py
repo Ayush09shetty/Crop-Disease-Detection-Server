@@ -1,3 +1,4 @@
+# This file contains views for consultant registration, login, and profile management in a Django application. It uses Django REST Framework for API development and JWT for authentication.
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -30,6 +31,8 @@ class ConsultantRegisterView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+# Consultant Login
 class ConsultantLoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -55,7 +58,6 @@ class ConsultantLoginView(APIView):
 
 
 # Consultant Profile
-
 class ConsultantProfileView(APIView):
     permission_classes = [AllowAny]
 

@@ -1,3 +1,4 @@
+#This file contains the view for getting hero image and uploading hero images 
 from django.shortcuts import render
 import os
 import random
@@ -10,6 +11,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 
+
+# This API returns 4 random hero images from the heroimages folder.
+# The images are used for the home page of the app.
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_random_hero_images(request):
@@ -23,6 +27,8 @@ def get_random_hero_images(request):
         return Response({"error": str(e)}, status=500)
 
 
+#This API allows admin to upload images to the heroimages folder.
+#Hero images are used for the home page of the app.
 @api_view(['PUT'])
 @permission_classes([AllowAny])
 @parser_classes([MultiPartParser, FormParser]) 

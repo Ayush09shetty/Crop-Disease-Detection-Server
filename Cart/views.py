@@ -1,3 +1,4 @@
+# Thus file contains the views for handling cart related requests.
 import uuid
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
@@ -8,6 +9,9 @@ from .models import Cart, CartItem
 from productmodule.models import Product
 from .serializers import CartItemSerializer
 
+
+# This view is for adding a product to the cart
+# It accepts a product ID and quantity in the request body.
 class AddToCartView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -38,9 +42,10 @@ class AddToCartView(APIView):
         cart_item.save()
         return Response({"message": "Product added to cart successfully!"}, status=status.HTTP_200_OK)
 
+
+# This view is for updating the cart item quantity or removing it if quantity is 0
 class UpdateCartItemView(APIView):
     permission_classes = [IsAuthenticated]
-
     def put(self, request):
         user = request.user
         data = request.data
@@ -62,6 +67,7 @@ class UpdateCartItemView(APIView):
         return Response({"message": "Cart item updated successfully!"}, status=status.HTTP_200_OK)
 
 
+# This view is for viewing the cart items
 class ViewCartView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -74,6 +80,7 @@ class ViewCartView(APIView):
         return Response(serializer.data)
 
 
+# This view is for deleting a cart item
 class DeleteCartItemView(APIView):
     permission_classes = [IsAuthenticated]
 
