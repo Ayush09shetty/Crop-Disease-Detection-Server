@@ -5,10 +5,15 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from .models import Appointment
+from user.models import User
 from .serializers import AppointmentSerializer
 from Consultant.models import ConsultantUser
 from Consultant.serializers import ConsultantUserSerializer 
 from django.core.cache import cache
+from django.core.mail import send_mail
+from django.conf import settings
+from django.db import connection
+
 
 
 # This view is for booking an appointment
@@ -55,6 +60,42 @@ class BookAppointmentView(APIView):
             start_time=start_time,
             end_time=end_time
         )
+        try:
+            if consultant:
+                consultant_email = consultant.email  # Get consultant email
+                consultant_full_name = f"{consultant.first_name} {consultant.last_name}"
+        
+                # Create Meet link only if mode is online
+                meet_link = ""
+                if mode == "online":
+                    meet_link = f"https://meet.google.com/rgi-trxn-ccx"
+        
+                # Use Django's default user fields
+                user_full_name = f"{getattr(user, 'first_name', 'User')} {getattr(user, 'last_name', '')}"
+                user_phone = getattr(user, "phone", "N/A")
+        
+                if consultant_email:
+                    subject = "New Appointment Scheduled"
+                    message = (
+                        f"Dear {consultant_full_name},\n\n"
+                        f"You have a new appointment scheduled.\n\n"
+                        f"📅 Date: {date}\n"
+                        f"⏰ Time: {start_time} - {end_time}\n"
+                        f"👤 User: {user_full_name} ({user_phone})\n"
+                        f"💬 Mode: {mode.capitalize()}\n"
+                    )
+        
+                    if meet_link:
+                        message += f"🔗 Google Meet Link: {meet_link}\n"
+        
+                    message += "\nPlease be available at the scheduled time.\n\nRegards,\nYour Crop Detection Platform"
+        
+                    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [consultant_email])
+        
+        except Exception as e:
+            # Log or print error if needed
+            print(f"Warning: Failed to send email notification - {str(e)}")
+        
 
         serializer = AppointmentSerializer(appointment)
         return Response({"message": "Appointment booked successfully!", "appointment": serializer.data}, status=status.HTTP_201_CREATED)

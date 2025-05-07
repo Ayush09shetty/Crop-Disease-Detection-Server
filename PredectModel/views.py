@@ -21,9 +21,7 @@ if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"Model file not found: {MODEL_PATH}")
 MODEL = tf.keras.models.load_model(MODEL_PATH)
 CLASS_NAMES = [
-    'Potato Early Blight', 'Potato Healthy', 'Potato Late Blight',
-    'Tomato Bacterial Spot', 'Tomato Early Blight', 'Tomato Healthy',
-    'Tomato Late Blight', 'Tomato Septoria Spot'
+    'Alovera Rust', 'Healthy Alovera', 'Alovera Leaf Spot'
 ]
 
 DISEASE_NAME = "NULL"
@@ -183,16 +181,17 @@ def video_predict(request):
 
         cap.release()
         os.remove(temp_video_path)
+        # print("Code executed till here")
 
+        predicted_class = DISEASE_NAME
         if not predictions:
             return JsonResponse({"error": "No frames processed from video"}, status=500)
 
         # Get the most frequent prediction
         most_common_class = Counter(predictions).most_common(1)[0][0]
-        predicted_class = CLASS_NAMES[most_common_class]
-        predicted_class = DISEASE_NAME
+        # predicted_class = CLASS_NAMES[most_common_class]
+        print("Predicted class:", predicted_class)
         confidence = float(predictions.count(most_common_class) / len(predictions) * 100)
-
         # Fetch disease info from DB
         with connection.cursor() as cursor:
             cursor.execute("SELECT id, cure, precaution, causes FROM diseases WHERE name = %s", [predicted_class])
@@ -201,7 +200,6 @@ def video_predict(request):
             if not disease_row:
                 return JsonResponse({
                     "prediction": predicted_class,
-                    "confidence": confidence,
                     "error": "Disease info not found in database"
                 }, status=404)
 
